@@ -71,6 +71,15 @@ Output ONLY valid JSON with exactly these fields (generate exactly 5 questions a
     except Exception as e:
         print(f"  LLM error: {e}")
     
+    # Try regex title extraction
+    try:
+        mt = __import__('re').search(r'\"title\"\s*:\s*\"([^\"]+)\"', text)
+        if mt:
+            fb = _fallback(title, raw_text)
+            fb['title'] = mt.group(1)
+            return fb
+    except:
+        pass
     return _fallback(title, raw_text)
 
 def _clean_title(t):

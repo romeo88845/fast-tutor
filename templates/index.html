@@ -40,19 +40,14 @@ body{font:400 15px/21.75px var(--font);color:var(--on-surface);background:var(--
 .app-wrapper{display:flex;flex:1;overflow:hidden}
 
 /* ── Navigation Drawer (desktop) ── */
-.drawer{width:300px;min-width:300px;background:var(--surface);border-right:1px solid var(--outline-variant);overflow-y:auto;padding:0 0 12px 0;flex-shrink:0}
-.drawer .section{font:600 11px/14px var(--font);color:var(--on-surface-variant);text-transform:uppercase;letter-spacing:.1em;padding:16px 16px 6px}
-.drawer .bar{height:4px;background:var(--surface-variant);border-radius:2px;margin:6px 16px;overflow:hidden}
-.drawer .bar .fill{height:100%;background:var(--primary);border-radius:var(--shape-sm);transition:width .3s}
-.drawer .lesson{display:block;padding:8px 16px;margin:0 4px;border-radius:8px;cursor:pointer;transition:all .12s;border-bottom:1px solid var(--outline-variant)}.drawer .lesson:last-child{border-bottom:none}.drawer .lesson:hover{background:var(--surface-container-high)}.drawer .lesson.active{background:var(--primary-container)}
-.drawer .lesson:hover{background:var(--surface-variant)}
-.drawer .lesson.active{background:var(--primary-container)}
-.drawer .lesson .num{display:inline-block;font:600 11px/14px var(--font);color:var(--primary);background:var(--primary-container);padding:1px 6px;border-radius:4px;margin-bottom:2px}.drawer .lesson .num.done{background:#2E7D32;color:#fff}
-.drawer .lesson.active .num{background:var(--primary);color:var(--on-primary)}
-.drawer .lesson .t{font:500 14px/20px var(--font);color:var(--on-surface);display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.drawer .stats{padding:4px 16px}
-.drawer .stats .row{display:flex;justify-content:space-between;font:400 13px/20px var(--font);color:var(--on-surface-variant);padding:3px 0}
-.drawer .stats .row strong{color:var(--on-surface)}
+.drawer{width:300px;min-width:300px;background:#F0F2F5;border-right:1px solid #D0D3D9;overflow-y:auto;padding:0 0 12px 0;flex-shrink:0}
+.drawer .section, .drawer-mobile .section{font:600 11px/14px var(--font);color:var(--on-surface-variant);text-transform:uppercase;letter-spacing:.1em;padding:16px 16px 6px}
+.drawer .bar, .drawer-mobile .bar{height:4px;background:var(--surface-variant);border-radius:2px;margin:6px 16px;overflow:hidden}
+.drawer .bar .fill, .drawer-mobile .bar .fill{height:100%;background:var(--primary);border-radius:var(--shape-sm);transition:width .3s}
+.drawer .lesson, .drawer-mobile .lesson{display:flex;align-items:center;gap:12px;padding:10px 14px;margin:0 8px 6px;border-radius:10px;cursor:pointer;transition:all .15s;background:#F8F9FC;box-shadow:0 1px 2px rgba(0,0,0,.06)}.drawer .lesson:hover, .drawer-mobile .lesson:hover{background:var(--surface-variant)}.drawer .lesson.active, .drawer-mobile .lesson.active{background:var(--primary-container);box-shadow:0 1px 4px rgba(26,106,191,.2)}.drawer .lesson.done, .drawer-mobile .lesson.done{opacity:.7}.drawer .lesson .num, .drawer-mobile .lesson .num{width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font:600 11px/14px var(--font);flex-shrink:0;background:#E8EAEF;color:#1A1C1E;transition:all .2s}.drawer .lesson .num.done, .drawer-mobile .lesson .num.done{background:#2E7D32;color:#fff;font-size:12px}.drawer .lesson .t, .drawer-mobile .lesson .t{flex:1;font:400 13px/18px var(--font);color:var(--on-surface);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.drawer .lesson.active, .drawer-mobile .lesson.active .t{font-weight:500}
+.drawer .stats, .drawer-mobile .stats{padding:4px 16px}
+.drawer .stats .row, .drawer-mobile .stats .row{display:flex;justify-content:space-between;font:400 13px/20px var(--font);color:var(--on-surface-variant);padding:3px 0}
+.drawer .stats .row strong, .drawer-mobile .stats .row strong{color:var(--on-surface)}
 
 /* ── Main Content ── */
 .main{flex:1;overflow-y:auto;padding:32px;display:flex;justify-content:center}
