@@ -20,6 +20,7 @@ from sqlalchemy.orm import Session as DBSession
 BASE = Path(__file__).parent
 
 app = FastAPI(title="Fast-Tutor", version="1.0.0")
+app.state.max_request_size = 200_000_000
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
 # Static files for images
@@ -51,6 +52,56 @@ from ingest.pdf_processor import process_pdf
 from ingest.destillo import ingest_destillo
 from database import SessionLocal
 
+
+@app.post("/api/ingest/epub")
+async def ingest_epub(file: UploadFile = File(...), exam_code: str = "EPUB-Content"):
+    """Upload an EPUB, extract content, ingest into Fast-Tutor."""
+    if not file.filename.endswith(".epub"):
+        raise HTTPException(400, "Only EPUB files accepted")
+    
+    import tempfile
+    tmp = tempfile.NamedTemporaryFile(suffix=".epub", delete=False)
+    CHUNK = 1024 * 1024  # 1MB chunks
+    while True:
+        chunk = await file.read(CHUNK)
+        if not chunk:
+            break
+        tmp.write(chunk)
+    tmp.close()
+    
+    try:
+        from ingest.epub_processor import process_epub
+        from ingest.destillo import ingest_destillo
+        from database import SessionLocal
+        
+        result = process_epub(tmp.name, exam_code)
+        
+        db = SessionLocal()
+        try:
+            md_path = tmp.name.replace(".epub", ".md")
+            with open(md_path, "w") as f:
+                f.write(result["markdown"])
+            ingest = ingest_destillo(md_path, db, exam_code, replace=True)
+            db.commit()
+            if os.path.exists(md_path):
+                os.unlink(md_path)
+        finally:
+            db.close()
+        
+        return {
+            "status": "ok",
+            "chapters": result["chapters"],
+            "key_points": result["key_points"],
+            "images_extracted": result["images_extracted"],
+            "lessons_created": ingest.get("lessons_created", 0)
+        }
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(500, f"EPUB processing failed: {str(e)}")
+    finally:
+        os.unlink(tmp.name)
+
 @app.post("/api/ingest/pdf")
 async def ingest_pdf(file: UploadFile = File(...), exam_code: str = "PDF-Content"):
     """Upload a PDF, extract content, ingest into Fast-Tutor."""
@@ -59,8 +110,12 @@ async def ingest_pdf(file: UploadFile = File(...), exam_code: str = "PDF-Content
     
     # Save to temp
     tmp = tempfile.NamedTemporaryFile(suffix=".pdf", delete=False)
-    content_bytes = await file.read()
-    tmp.write(content_bytes)
+    CHUNK = 1024 * 1024  # 1MB chunks
+    while True:
+        chunk = await file.read(CHUNK)
+        if not chunk:
+            break
+        tmp.write(chunk)
     tmp.close()
     
     try:
@@ -70,7 +125,7 @@ async def ingest_pdf(file: UploadFile = File(...), exam_code: str = "PDF-Content
         # Ingest into DB
         db = SessionLocal()
         try:
-            ingest = ingest_destillo(tmp.name.replace(".pdf", ".md"), db, exam_code)
+            ingest = ingest_destillo(tmp.name.replace(".pdf", ".md"), db, exam_code, replace=True)
             db.commit()
         finally:
             db.close()
@@ -88,6 +143,8 @@ async def ingest_pdf(file: UploadFile = File(...), exam_code: str = "PDF-Content
             "lessons_created": ingest.get("lessons_created", 0)
         }
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         raise HTTPException(500, f"PDF processing failed: {str(e)}")
     finally:
         os.unlink(tmp.name)
@@ -121,4 +178,4 @@ def health():
 
 if __name__ == "__main__":
     port = int(sys.argv[1]) if len(sys.argv) > 1 else 8411
-    uvicorn.run(app, host="0.0.0.0", port=port, log_level="info")
+    uvicorn.run(app, host="0.0.0.0", port=port, log_level="info", limit_concurrency=20)

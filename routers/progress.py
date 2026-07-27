@@ -3,22 +3,23 @@ from sqlalchemy.orm import Session as DBSession
 from typing import List
 
 from database import get_db
-from models import User, UserObjectiveProgress, Objective, Domain, Exam, SpacedRepetitionCard
+from models import User, UserObjectiveProgress, UserLessonProgress, Objective, Domain, Exam, SpacedRepetitionCard, Lesson
 from schemas import ObjectiveProgressOut
 from services.spaced_repetition import calculate_next_review
 
 router = APIRouter(prefix="/api/progress", tags=["progress"])
 
 @router.get("/{user_id}/overview")
-def progress_overview(user_id: int, db: DBSession = Depends(get_db)):
-    """Get learner's progress overview."""
+def progress_overview(user_id: int, exam_id: int = None, db: DBSession = Depends(get_db)):
+    """Get learner's progress overview. Optionally filter by exam."""
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
         raise HTTPException(404, "User not found")
     
-    progress = db.query(UserObjectiveProgress).filter(
-        UserObjectiveProgress.user_id == user_id
-    ).all()
+    q = db.query(UserObjectiveProgress).filter(UserObjectiveProgress.user_id == user_id)
+    if exam_id:
+        q = q.join(Objective).filter(Objective.domain_id == Domain.id).filter(Domain.exam_id == exam_id)
+    progress = q.all()
     
     total_q = sum(p.questions_answered for p in progress)
     total_c = sum(p.correct_count for p in progress)
@@ -34,11 +35,12 @@ def progress_overview(user_id: int, db: DBSession = Depends(get_db)):
     }
 
 @router.get("/{user_id}/objectives", response_model=List[ObjectiveProgressOut])
-def objective_progress(user_id: int, db: DBSession = Depends(get_db)):
-    """Get per-objective progress."""
-    progress = db.query(UserObjectiveProgress).filter(
-        UserObjectiveProgress.user_id == user_id
-    ).all()
+def objective_progress(user_id: int, exam_id: int = None, db: DBSession = Depends(get_db)):
+    """Get per-objective progress. Optionally filter by exam."""
+    q = db.query(UserObjectiveProgress).filter(UserObjectiveProgress.user_id == user_id)
+    if exam_id:
+        q = q.join(Objective).filter(Objective.domain_id == Domain.id).filter(Domain.exam_id == exam_id)
+    progress = q.all()
     
     result = []
     for p in progress:
@@ -56,12 +58,15 @@ def objective_progress(user_id: int, db: DBSession = Depends(get_db)):
     return sorted(result, key=lambda x: x.accuracy)
 
 @router.get("/{user_id}/weak")
-def weak_objectives(user_id: int, db: DBSession = Depends(get_db)):
-    """Get weakest objectives (lowest accuracy)."""
-    progress = db.query(UserObjectiveProgress).filter(
+def weak_objectives(user_id: int, exam_id: int = None, db: DBSession = Depends(get_db)):
+    """Get weakest objectives (lowest accuracy). Optionally filter by exam."""
+    q = db.query(UserObjectiveProgress).filter(
         UserObjectiveProgress.user_id == user_id,
         UserObjectiveProgress.accuracy < 0.6
-    ).order_by(UserObjectiveProgress.accuracy.asc()).all()
+    )
+    if exam_id:
+        q = q.join(Objective).filter(Objective.domain_id == Domain.id).filter(Domain.exam_id == exam_id)
+    progress = q.order_by(UserObjectiveProgress.accuracy.asc()).all()
     
     result = []
     for p in progress:
@@ -78,11 +83,12 @@ def weak_objectives(user_id: int, db: DBSession = Depends(get_db)):
 from datetime import datetime, timezone
 
 @router.get("/{user_id}/dashboard")
-def progress_dashboard(user_id: int, db: DBSession = Depends(get_db)):
-    """Comprehensive learning dashboard."""
-    progress = db.query(UserObjectiveProgress).filter(
-        UserObjectiveProgress.user_id == user_id
-    ).all()
+def progress_dashboard(user_id: int, exam_id: int = None, db: DBSession = Depends(get_db)):
+    """Comprehensive learning dashboard. Optionally filter by exam."""
+    q = db.query(UserObjectiveProgress).filter(UserObjectiveProgress.user_id == user_id)
+    if exam_id:
+        q = q.join(Objective).filter(Objective.domain_id == Domain.id).filter(Domain.exam_id == exam_id)
+    progress = q.all()
     
     total_q = sum(p.questions_answered for p in progress)
     total_c = sum(p.correct_count for p in progress)
@@ -160,6 +166,29 @@ def cards_due(user_id: int, db: DBSession = Depends(get_db)):
                 "easiness_factor": c.easiness_factor
             })
     return result
+
+@router.post("/{user_id}/lesson/{lesson_id}/complete")
+def mark_lesson_complete(user_id: int, lesson_id: int, db: DBSession = Depends(get_db)):
+    lp = db.query(UserLessonProgress).filter(
+        UserLessonProgress.user_id == user_id,
+        UserLessonProgress.lesson_id == lesson_id
+    ).first()
+    if not lp:
+        lp = UserLessonProgress(user_id=user_id, lesson_id=lesson_id, completed=1, completed_at=datetime.utcnow())
+        db.add(lp)
+    else:
+        lp.completed = 1
+        lp.completed_at = datetime.utcnow()
+    db.commit()
+    return {"status": "ok", "lesson_id": lesson_id}
+
+@router.get("/{user_id}/completed-lessons")
+def get_completed_lessons(user_id: int, db: DBSession = Depends(get_db)):
+    progress = db.query(UserLessonProgress).filter(
+        UserLessonProgress.user_id == user_id,
+        UserLessonProgress.completed == 1
+    ).all()
+    return {"completed_ids": [lp.lesson_id for lp in progress]}
 
 @router.post("/cards/review")
 def card_review(card_id: int, is_correct: bool, user_id: int = 1, db: DBSession = Depends(get_db)):

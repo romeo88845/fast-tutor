@@ -165,6 +165,7 @@ body{font:400 14px/20px var(--font);color:var(--on-surface);background:var(--sur
 <!-- Top App Bar -->
 <header class="top-bar">
   <button class="menu-btn" id="menuBtn" onclick="toggleMobileDrawer()">menu</button>
+  <select id="examSelector" onchange="switchExam(this.value)" style="font:500 13px/18px var(--font);background:var(--surface-variant);border:none;border-radius:var(--shape-md);padding:4px 8px;color:var(--on-surface);max-width:160px;cursor:pointer;margin-left:4px"></select>
   <h1>Fast-Tutor</h1>
   <span class="streak" id="streakBadge"><span class="icon" style="font-family:'Material Symbols Outlined';font-size:16px">local_fire_department</span><span id="streakNum">0</span></span>
 </header>
@@ -191,7 +192,10 @@ body{font:400 14px/20px var(--font);color:var(--on-surface);background:var(--sur
         <h2>Fast-Tutor</h2>
         <p>Learn Microsoft technologies through micro-lessons and adaptive quizzing.</p>
         <div style="display:flex;flex-direction:column;gap:8px;align-items:center">
-          <button class="btn btn-fill" onclick="startSession('learn')" style="width:260px;justify-content:center">
+          <button class="btn btn-fill" onclick="startSession('learn')" style="width:260px;justify-content:center;padding:12px 24px;font-size:16px">
+            <span class="icon" style="font-family:'Material Symbols Outlined';font-size:20px">play_arrow</span> Start Learning
+          </button>
+          <button class="btn btn-outline" onclick="startSession('learn')" style="width:260px;justify-content:center">
             <span class="icon" style="font-family:'Material Symbols Outlined';font-size:18px">school</span> Learn Mode
           </button>
           <button class="btn btn-outline" onclick="startSession('drill')" style="width:260px;justify-content:center">
@@ -219,7 +223,10 @@ body{font:400 14px/20px var(--font);color:var(--on-surface);background:var(--sur
 <!-- Mobile Drawer Overlay -->
 <div class="drawer-overlay" id="mobileDrawer" onclick="closeMobileDrawer(event)">
   <div class="drawer-mobile" id="drawerMobileInner">
-    <div class="section">Course</div>
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:0 4px 8px 4px">
+        <div class="section" style="padding:0">Course</div>
+        <button class="menu-btn" onclick="closeDrawer()" style="font-size:15px;padding:2px" aria-label="Close">close</button>
+      </div>
     <div class="bar"><div class="fill" id="mProgressFill" style="width:0%"></div></div>
     <div id="mLessonList"></div>
   </div>
@@ -243,7 +250,48 @@ let lessons = [];
 /* ════════════════════════════════════════════════
    INIT
    ════════════════════════════════════════════════ */
+async function loadCourse(examId) {
+  window.examId = examId;
+  localStorage.setItem('ft-exam', examId);
+  try {
+    const r = await fetch(API + '/api/exams/' + examId + '/lessons');
+    lessons = await r.json();
+  } catch(e) { lessons = []; }
+  try {
+    const cr = await fetch(API + '/api/progress/1/completed-lessons?exam_id=' + examId);
+    const cd = await cr.json();
+    window.completedLessons = cd.completed_ids || [];
+  } catch(e) { window.completedLessons = []; }
+  renderLessonList();
+  updateStats();
+}
+
+async function switchExam(id) {
+  localStorage.removeItem('ft-session');
+  await loadCourse(id);
+  document.getElementById('contentArea').innerHTML = document.querySelector('.welcome') ? document.querySelector('.welcome').outerHTML : '<div class="welcome"><div class="icon">school</div><h2>Fast-Tutor</h2><p>Course loaded.</p></div>';
+}
+
 async function init() {
+  try {
+    const er = await fetch(API + '/api/exams');
+    const exams = await er.json();
+    var sel = document.getElementById('examSelector');
+    if (sel) {
+      exams.forEach(function(e) {
+        var opt = document.createElement('option');
+        opt.value = e.id;
+        opt.textContent = e.name || e.code;
+        sel.appendChild(opt);
+      });
+    }
+    window.examId = parseInt(localStorage.getItem('ft-exam') || '1');
+    if (sel) sel.value = window.examId;
+  } catch(e) { window.examId = 1; }
+  await loadCourse(window.examId);
+  checkResume();
+  return;
+  // Old init below
   try {
     const r = await fetch(API + '/api/exams/1/lessons');
     lessons = await r.json();
@@ -300,12 +348,13 @@ function clearResume() {
 function renderLessonList() {
   const list = document.getElementById('lessonList');
   const mList = document.getElementById('mLessonList');
-  const html = lessons.map((l, i) => 
-    `<div class="lesson${currentStep && currentStep.lesson_id === l.id ? ' active' : ''}" data-id="${l.id}">
-      <span class="num">${i + 1}</span>
-      <span class="t">${esc(l.title)}</span>
-    </div>`
-  ).join('');
+  var completed = window.completedLessons || [];
+  const html = lessons.map((l, i) => {
+    var done = completed.indexOf(l.id) >= 0;
+    return '<div class="lesson' + (currentStep && currentStep.lesson_id === l.id ? ' active' : '') + '" data-id="' + l.id + '" onclick="closeDrawer();selectLesson(' + l.id + ')">' +
+      '<span class="num" style="' + (done ? 'background:var(--success);color:#fff' : '') + '">' + (done ? '\u2713' : (i + 1)) + '</span>' +
+      '<span class="t">' + esc(l.title) + '</span></div>';
+  }).join('');
   list.innerHTML = html || '<div style="padding:12px;font:400 13px/18px var(--font);color:var(--on-surface-variant)">No lessons loaded.</div>';
   mList.innerHTML = list.innerHTML;
 }
@@ -323,7 +372,7 @@ async function startSession(mode) {
     const r = await fetch(API + '/api/sessions', {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({exam_id: 1, mode: mode, user_id: 1})
+      body: JSON.stringify({exam_id: window.examId, mode: mode, user_id: 1})
     });
     const data = await r.json();
     sessionId = data.session_id;
@@ -532,6 +581,47 @@ function toggleMobileDrawer() {
   document.getElementById('mobileDrawer').classList.toggle('show');
 }
 
+function selectLesson(id) {
+  var l = lessons.find(function(x) { return x.id === id; });
+  if (!l) return;
+  var segs = l.segments || [];
+  var qs = l.questions || [];
+  
+  var segHtml = segs.map(function(s) {
+    var txt = s.content_md || s.text || '';
+    var tm = s.time_start || s.time || '';
+    return '<div class="card card-outline" style="margin-bottom:8px">' +
+      (tm ? '<div style="font:500 11px/14px var(--font);color:var(--primary);margin-bottom:6px">' + esc(tm) + '</div>' : '') +
+      '<p style="font:400 14px/20px var(--font);white-space:pre-wrap">' + esc(txt) + '</p></div>';
+  }).join('');
+  
+  var qHtml = qs.map(function(q) {
+    var opts = (q.options || []).map(function(o) {
+      return '<div class="choice" style="padding:8px 12px;margin:4px 0;border:1px solid var(--outline);border-radius:var(--shape-md);font:400 14px/20px var(--font);cursor:default">' +
+        esc(o.label) + '. ' + esc(o.text) + '</div>';
+    }).join('');
+    return '<div class="card card-outline" style="margin-bottom:8px">' +
+      '<div style="font:500 14px/20px var(--font);margin-bottom:8px">' + esc(q.stem || '') + '</div>' +
+      opts + '</div>';
+  }).join('');
+  
+  var area = document.getElementById('contentArea');
+  area.innerHTML = '<div style="max-width:720px;margin:0 auto">' +
+    '<div class="card card-elevated" style="margin-bottom:16px">' +
+    '<div style="font:500 24px/32px var(--font);margin-bottom:8px">' + esc(l.title) + '</div>' +
+    '<p style="font:400 14px/22px var(--font);color:var(--on-surface-variant);white-space:pre-wrap">' + esc(l.content_md || 'No description.') + '</p>' +
+    (l.estimated_min ? '<div style="margin-top:8px;font:400 12px/16px var(--font);color:var(--on-surface-variant)">Duration: ~' + l.estimated_min + ' min</div>' : '') +
+    '</div>' +
+    (segHtml ? '<div style="font:500 16px/24px var(--font);margin-bottom:8px">Transcript</div>' + segHtml : '') +
+    (qHtml ? '<div style="font:500 16px/24px var(--font);margin:16px 0 8px">Questions</div>' + qHtml : '') +
+    '<button class="btn btn-fill mt-16" onclick="startSession(\'learn\')" style="width:100%">Start Learning</button>' +
+    '</div>';
+}
+
+function closeDrawer() {
+  document.getElementById('mobileDrawer').classList.remove('show');
+}
+
 function closeMobileDrawer(e) {
   if (e.target === document.getElementById('mobileDrawer')) {
     document.getElementById('mobileDrawer').classList.remove('show');
@@ -556,7 +646,7 @@ async function showDashboard() {
   const area = document.getElementById('contentArea');
   area.innerHTML = '<div class="loading"><div class="spinner">autorenew</div><p style="margin-top:12px">Loading dashboard...</p></div>';
   try {
-    const r = await fetch(API + '/api/progress/1/dashboard');
+    const r = await fetch(API + '/api/progress/1/dashboard?exam_id=' + (window.examId || 1));
     const d = await r.json();
     const o = d.overall || {};
     const acc = o.accuracy ? (o.accuracy * 100).toFixed(0) : '0';
@@ -586,7 +676,7 @@ async function showDashboard() {
 
     // Need to review
     try {
-      const cr = await fetch(API + '/api/progress/cards/due/1');
+      const cr = await fetch(API + '/api/progress/cards/due/1?exam_id=' + (window.examId || 1));
       const cards = await cr.json();
       if (cards.length) {
         area.innerHTML += '<div class="card"><div style="font:500 16px/24px var(--font);margin-bottom:8px">Due for Review</div>' +
@@ -604,9 +694,9 @@ async function showDashboard() {
 async function showUploadForm() {
   const area = document.getElementById('contentArea');
   area.innerHTML = '<div class="card" style="max-width:500px;margin:0 auto">' +
-    '<div style="font:500 18px/24px var(--font);margin-bottom:12px">Upload PDF</div>' +
-    '<p style="font:400 14px/20px var(--font);color:var(--on-surface-variant);margin-bottom:16px">Upload a PDF to create lessons from its content.</p>' +
-    '<input type="file" id="pdfUpload" accept=".pdf" style="display:block;margin-bottom:12px;font:400 14px/20px var(--font)">' +
+    '<div style="font:500 18px/24px var(--font);margin-bottom:12px">Upload File</div>' +
+    '<p style="font:400 14px/20px var(--font);color:var(--on-surface-variant);margin-bottom:16px">Upload a PDF or EPUB to create lessons from its content.</p>' +
+    '<input type="file" id="pdfUpload" accept=".pdf,.epub" style="display:block;margin-bottom:12px;font:400 14px/20px var(--font)">' +
     '<div class="btn-group">' +
     '<button class="btn btn-fill" onclick="uploadPDF()">Process</button>' +
     '<button class="btn btn-text" onclick="location.reload()">Cancel</button>' +
@@ -617,17 +707,28 @@ async function showUploadForm() {
 async function uploadPDF() {
   const fileInput = document.getElementById('pdfUpload');
   const resultDiv = document.getElementById('uploadResult');
-  if (!fileInput.files.length) { resultDiv.textContent = 'Please select a PDF file.'; return; }
+  if (!fileInput.files.length) { resultDiv.textContent = 'Please select a file.'; return; }
   const file = fileInput.files[0];
-  if (!file.name.endsWith('.pdf')) { resultDiv.textContent = 'Only PDF files accepted.'; return; }
   
-  resultDiv.textContent = 'Processing...';
+  var endpoint, code;
+  if (file.name.endsWith('.pdf')) {
+    endpoint = '/api/ingest/pdf';
+    code = 'PDF-Content';
+  } else if (file.name.endsWith('.epub')) {
+    endpoint = '/api/ingest/epub';
+    code = 'EPUB-Content';
+  } else {
+    resultDiv.textContent = 'Only PDF and EPUB files accepted.';
+    return;
+  }
+  
+  resultDiv.innerHTML = '<div style="display:flex;align-items:center;gap:8px"><div class="spinner" style="font-family:Material Symbols Outlined;animation:spin 1s linear infinite">autorenew</div> Processing ' + (file.size > 50 * 1024 * 1024 ? 'large file (may take a minute)...' : '...') + '</div>';
   const formData = new FormData();
   formData.append('file', file);
-  formData.append('exam_code', 'PDF-Content');
+  formData.append('exam_code', code);
   
   try {
-    const r = await fetch('/api/ingest/pdf', { method: 'POST', body: formData });
+    const r = await fetch(endpoint, { method: 'POST', body: formData });
     const d = await r.json();
     if (d.status === 'ok') {
       resultDiv.innerHTML = '<span style="color:var(--success)">✅ Processed! ' + d.chapters + ' chapters, ' + d.key_points + ' key points, ' + d.lessons_created + ' lessons.</span>';
@@ -639,10 +740,23 @@ async function uploadPDF() {
   }
 }
 
+async function afterUpload() {
+  try {
+    const er = await fetch(API + '/api/exams');
+    const exams = await er.json();
+    if (exams && exams.length > 0) {
+      var latest = exams[exams.length - 1];
+      localStorage.setItem('ft-exam', String(latest.id));
+    }
+  } catch(e) {}
+  localStorage.removeItem('ft-session');
+  location.reload();
+}
+
 async function showQueue() {
   const area = document.getElementById('contentArea');
   try {
-    const r = await fetch(API + '/api/progress/1/weak');
+    const r = await fetch(API + '/api/progress/1/weak?exam_id=' + (window.examId || 1));
     const weak = await r.json();
     if (weak.length) {
       area.innerHTML = '<div class="card"><div style="font:500 16px/24px var(--font);margin-bottom:12px">Topics to Review</div>' +

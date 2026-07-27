@@ -91,6 +91,18 @@ def submit_answer(db: DBSession, session_id: int, step_id: int, response: str, u
             correct, explanation = _check_answer(question, response)
             _update_progress(db, user_id, question.objective_id, correct)
             _update_spaced_repetition(db, user_id, question.id, correct)
+            if correct and step.lesson_id:
+                from models import UserLessonProgress
+                lp = db.query(UserLessonProgress).filter(
+                    UserLessonProgress.user_id == user_id,
+                    UserLessonProgress.lesson_id == step.lesson_id
+                ).first()
+                if not lp:
+                    db.add(UserLessonProgress(
+                        user_id=user_id, lesson_id=step.lesson_id,
+                        completed=1, completed_at=__import__('datetime').datetime.utcnow()
+                    ))
+                    db.flush()
 
             # Generate next step
             next_step = _generate_next_step(db, session, user_id, step)

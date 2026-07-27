@@ -120,6 +120,7 @@ class User(Base):
     sessions = relationship("Session", back_populates="user")
     progress = relationship("UserObjectiveProgress", back_populates="user", cascade="all, delete-orphan")
     cards = relationship("SpacedRepetitionCard", back_populates="user", cascade="all, delete-orphan")
+    lesson_progress = relationship("UserLessonProgress", back_populates="user", cascade="all, delete-orphan")
 
 class UserObjectiveProgress(Base):
     __tablename__ = "user_objective_progress"
@@ -132,6 +133,16 @@ class UserObjectiveProgress(Base):
     streak = Column(Integer, default=0)
     user = relationship("User", back_populates="progress")
     objective = relationship("Objective")
+
+class UserLessonProgress(Base):
+    __tablename__ = "user_lesson_progress"
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    lesson_id = Column(Integer, ForeignKey("lessons.id"), nullable=False)
+    completed = Column(Integer, default=0)
+    completed_at = Column(DateTime, nullable=True)
+    user = relationship("User")
+    lesson = relationship("Lesson")
 
 # ── Session ───────────────────────────────────────────────────────────────────
 

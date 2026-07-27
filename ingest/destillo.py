@@ -3,9 +3,9 @@ import re, json
 from pathlib import Path
 from sqlalchemy.orm import Session as DBSession
 
-from models import Exam, Domain, Objective, Lesson, LessonSegment, Question, AnswerOption, QuestionType, Difficulty
+from models import Exam, Domain, Objective, Lesson, LessonSegment, Question, AnswerOption, QuestionType, Difficulty, SessionStep, SpacedRepetitionCard, UserLessonProgress, UserObjectiveProgress
 
-def ingest_destillo(md_path: str, db: DBSession, exam_code: str = "MS-Intune") -> dict:
+def ingest_destillo(md_path: str, db: DBSession, exam_code: str = "MS-Intune", replace: bool = False) -> dict:
     """Parse a Destillo markdown file and seed the database."""
     md = Path(md_path).read_text("utf-8")
     
@@ -24,6 +24,21 @@ def ingest_destillo(md_path: str, db: DBSession, exam_code: str = "MS-Intune") -
     if not exam:
         exam = Exam(code=exam_code, name=title, vendor="Microsoft")
         db.add(exam)
+        db.flush()
+    elif replace:
+        # Delete all existing content for this exam via Domain -> Objective -> Lesson chain
+        for domain in exam.domains:
+            for obj in domain.objectives:
+                lessons = db.query(Lesson).filter(Lesson.objective_id == obj.id).all()
+                for les in lessons:
+                    db.query(SessionStep).filter(SessionStep.lesson_id == les.id).delete()
+                db.query(Lesson).filter(Lesson.objective_id == obj.id).delete()
+                db.query(Question).filter(Question.objective_id == obj.id).delete()
+            db.query(Objective).filter(Objective.domain_id == domain.id).delete()
+        db.query(Domain).filter(Domain.exam_id == exam.id).delete()
+        db.query(SpacedRepetitionCard).filter(SpacedRepetitionCard.user_id == 1).delete()
+        db.query(UserLessonProgress).filter(UserLessonProgress.user_id == 1).delete()
+        db.query(UserObjectiveProgress).filter(UserObjectiveProgress.user_id == 1).delete()
         db.flush()
     
     # Parse sections
