@@ -70,12 +70,25 @@ def process_epub(epub_path: str, exam_code: str = "EPUB-Content") -> dict:
     # Limit key points
     key_points = key_points[:25]
     
-    # Generate markdown
-    md = _generate_markdown(title, author, chapters, key_points)
+    # LLM reformat each chapter (in parallel)
+    print(f"Reformatting {len(chapters)} chapters with LLM...")
+    from ingest.llm_reformat import batch_reformat
+    reformatted = batch_reformat(chapters)
+    
+    # Update chapters with LLM output
+    for i, ch in enumerate(chapters):
+        if i < len(reformatted) and reformatted[i]:
+            r = reformatted[i]
+            ch["llm_explanation"] = r.get("explanation", ch["content"])
+            ch["llm_key_points"] = r.get("key_points", [])
+            ch["llm_questions"] = r.get("questions", [])
+    
+    # Generate markdown with LLM content
+    md = _generate_markdown(title, author, chapters, key_points, reformatted)
     
     return {
         "markdown": md,
-        "chapters": len(chapters),
+        "chapters": len(chapters), "reformatted": len([r for r in reformatted if r]),
         "key_points": len(key_points),
         "images_extracted": total_images
     }
@@ -135,8 +148,8 @@ def _clean_md(text):
     text = re.sub(r'\[.*?\]\(.*?\)\s*', '', text)  # Remove empty links
     return text.strip()
 
-def _generate_markdown(title, author, chapters, key_points):
-    """Generate Destillo-compatible markdown."""
+def _generate_markdown(title, author, chapters, key_points, reformatted=None):
+    """Generate Destillo-compatible markdown using LLM content when available."""
     lines = ["---"]
     lines.append(f'title: "{title}"')
     lines.append("source: epub")
@@ -157,14 +170,60 @@ def _generate_markdown(title, author, chapters, key_points):
     lines.append("## Chapters")
     for i, ch in enumerate(chapters):
         tm = f"{i}:00"
-        lines.append(f"**{tm} - {ch['title']}** - {ch['content'][:150]}")
+        expl = ""
+        if reformatted and i < len(reformatted) and reformatted[i]:
+            r = reformatted[i]
+            expl = r.get("explanation", ch["content"])[:200]
+            kps = r.get("key_points", [])
+            for kp in kps:
+                if kp not in key_points:
+                    key_points.append(kp)
+            if "title" not in r and r.get("explanation"):
+                r["title"] = r["explanation"][:70].rstrip("., ").replace("#", "").strip()
+        if reformatted and i < len(reformatted) and reformatted[i]:
+            r = reformatted[i]
+        else:
+            expl = ch["content"][:200]
+        ch_title = ch['title']
+        if reformatted and i < len(reformatted) and reformatted[i]:
+            r = reformatted[i]
+            if r.get("title", "").startswith("Chapter ") and r.get("explanation"):
+                r["title"] = r["explanation"][:70].rstrip(".,:; ").replace("#", "").strip()
+            ch_title = r.get("title", ch["title"])
+        lines.append(f"**{tm} - {ch_title}** - {expl}")
     lines.append("")
     lines.append("## Distilled Report")
     for i, ch in enumerate(chapters):
         tm = f"{i}:00"
-        lines.append(f"[{tm}] **{ch['title']}**")
+        ch_title = ch['title']
+        if reformatted and i < len(reformatted) and reformatted[i]:
+            r = reformatted[i]
+            if r.get("title", "").startswith("Chapter ") and r.get("explanation"):
+                r["title"] = r["explanation"][:70].rstrip(".,:; ").replace("#", "").strip()
+            ch_title = r.get("title", ch["title"])
+        lines.append(f"[{tm}] **{ch_title}**")
         lines.append("")
-        lines.append(ch['full_content'][:3000])
+        if reformatted and i < len(reformatted) and reformatted[i]:
+            r = reformatted[i]
+            lines.append(r.get("explanation", ch.get("full_content", ch["content"]))[:3000])
+            lines.append("")
+            kps = r.get("key_points", [])
+            if kps:
+                lines.append("Key Points:")
+                for kp in kps:
+                    lines.append(f"- {kp}")
+                lines.append("")
+            qs = r.get("questions", [])
+            if qs:
+                for q in qs:
+                    lines.append(f"Q: {q.get('stem','')}")
+                    for o in q.get("options", []):
+                        lines.append(f"  {o.get('label','')}: {o.get('text','')}")
+                    lines.append(f"  Answer: {q.get('correct','')}")
+                    lines.append(f"  {q.get('explanation','')}")
+                    lines.append("")
+        else:
+            lines.append(ch.get("full_content", ch["content"])[:3000])
         lines.append("")
     lines.append("")
     return "\n".join(lines)
