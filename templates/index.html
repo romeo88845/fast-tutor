@@ -31,6 +31,13 @@ body{font:400 14px/20px var(--font);color:var(--on-surface);background:var(--sur
 
 /* ── Top App Bar (elevated) ── */
 .top-bar{height:64px;display:flex;align-items:center;padding:0 16px;background:var(--surface);border-bottom:1px solid var(--outline-variant);flex-shrink:0;gap:8px;z-index:100}
+.top-bar .tb-left{display:flex;align-items:center;gap:4px}
+.top-bar .tb-center{display:flex;align-items:center;gap:2px;flex:1;justify-content:center}
+.top-bar .tb-right{display:flex;align-items:center}
+.mode-tab{display:flex;align-items:center;gap:4px;padding:6px 10px;font:500 12px/16px var(--font);color:var(--on-surface-variant);background:none;border:none;border-radius:var(--shape-md);cursor:pointer;transition:all .12s;white-space:nowrap}
+.mode-tab:hover{background:var(--surface-variant)}
+.mode-tab.active{background:var(--primary-container);color:var(--on-primary-container)}
+.mode-tab .mat-icon{font-family:'Material Symbols Outlined';font-size:16px}
 .top-bar .menu-btn{display:none;font-family:'Material Symbols Outlined';font-size:24px;cursor:pointer;padding:8px;border-radius:var(--shape-full);border:none;background:none;color:var(--on-surface)}
 .top-bar .menu-btn:hover{background:var(--surface-variant)}
 .top-bar h1{font:500 22px/28px var(--font);flex:1}
@@ -40,19 +47,25 @@ body{font:400 14px/20px var(--font);color:var(--on-surface);background:var(--sur
 .app-wrapper{display:flex;flex:1;overflow:hidden}
 
 /* ── Navigation Drawer (desktop) ── */
-.drawer{width:300px;min-width:300px;background:var(--surface);border-right:1px solid var(--outline-variant);overflow-y:auto;padding:12px;flex-shrink:0}
-.drawer .section{font:500 12px/16px var(--font);color:var(--on-surface-variant);text-transform:uppercase;letter-spacing:.08em;padding:8px 12px 4px}
-.drawer .bar{height:4px;background:var(--surface-variant);border-radius:var(--shape-sm);margin:8px 12px;overflow:hidden}
-.drawer .bar .fill{height:100%;background:var(--primary);border-radius:var(--shape-sm);transition:width .3s}
-.drawer .lesson{display:flex;align-items:center;gap:8px;padding:8px 12px;margin:1px 4px;border-radius:var(--shape-md);cursor:pointer;transition:background .12s;font:400 13px/18px var(--font)}
-.drawer .lesson:hover{background:var(--surface-variant)}
-.drawer .lesson.active{background:var(--primary-container)}
-.drawer .lesson .num{width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font:500 10px/14px var(--font);flex-shrink:0;background:var(--surface-variant);color:var(--on-surface-variant)}
-.drawer .lesson.active .num{background:var(--primary);color:var(--on-primary)}
-.drawer .lesson .t{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.drawer .stats{padding:0 12px}
-.drawer .stats .row{display:flex;justify-content:space-between;font:400 13px/20px var(--font);color:var(--on-surface-variant);padding:2px 0}
-.drawer .stats .row strong{color:var(--on-surface)}
+.panel{width:300px;min-width:300px;background:var(--surface);border-right:1px solid var(--outline-variant);overflow-y:auto;flex-shrink:0;display:flex;flex-direction:column}
+.panel-header{display:flex;align-items:center;gap:4px;padding:10px 8px;border-bottom:1px solid var(--outline-variant)}
+.panel .bar{height:4px;background:var(--surface-variant);margin:0;overflow:hidden}
+.panel .bar .fill{height:100%;background:var(--primary);transition:width .3s}
+.lesson-tree{padding:4px 0;flex:1;overflow-y:auto}
+.domain-group{margin:0 4px}
+.domain-group .dg-header{display:flex;align-items:center;gap:6px;padding:6px 12px;font:500 12px/16px var(--font);color:var(--on-surface-variant);text-transform:uppercase;letter-spacing:.05em;cursor:pointer;border-radius:var(--shape-sm);transition:background .12s}
+.domain-group .dg-header:hover{background:var(--surface-variant)}
+.domain-group .dg-header .arrow{font-size:14px;transition:transform .15s}
+.domain-group .dg-header .arrow.open{transform:rotate(90deg)}
+.domain-group .dg-lessons{overflow:hidden;max-height:0;transition:max-height .2s}
+.domain-group .dg-lessons.open{max-height:2000px}
+.lesson-item{display:flex;align-items:center;gap:8px;padding:6px 12px 6px 28px;border-radius:var(--shape-sm);cursor:pointer;transition:background .12s;font:400 13px/18px var(--font)}
+.lesson-item:hover{background:var(--surface-variant)}
+.lesson-item.active{background:var(--primary-container)}
+.lesson-item .num{width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;font:500 10px/12px var(--font);flex-shrink:0;background:var(--surface-variant);color:var(--on-surface-variant)}
+.lesson-item.active .num{background:var(--primary);color:var(--on-primary)}
+.lesson-item .num.done{background:var(--success);color:#fff}
+.lesson-item .t{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 
 /* ── Main Content ── */
 .main{flex:1;overflow-y:auto;padding:32px;display:flex;justify-content:center}
@@ -127,10 +140,10 @@ body{font:400 14px/20px var(--font);color:var(--on-surface);background:var(--sur
 .bottom-nav .nv-item .icon{font-family:'Material Symbols Outlined';font-size:24px}
 
 /* ── Mobile drawer overlay ── */
-.drawer-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:200}
-.drawer-overlay.show{display:block}
-.drawer-overlay .drawer-mobile{position:fixed;top:0;left:0;bottom:0;width:300px;background:var(--surface);box-shadow:var(--elevation-3);overflow-y:auto;padding:12px;animation:slideIn .2s ease}
-@keyframes slideIn{from{transform:translateX(-100%)}to{transform:translateX(0)}}
+/* panel now handles mobile via class */
+
+
+.panel.show{display:flex;position:fixed;top:48px;left:0;bottom:0;z-index:100;box-shadow:var(--elevation-3);animation:slideIn .2s ease}
 
 /* ── M3 Dialog ── */
 .dialog-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:300;align-items:center;justify-content:center}
@@ -192,20 +205,9 @@ body{font:400 14px/20px var(--font);color:var(--on-surface);background:var(--sur
         <h2>Fast-Tutor</h2>
         <p>Learn Microsoft technologies through micro-lessons and adaptive quizzing.</p>
         <div style="display:flex;flex-direction:column;gap:8px;align-items:center">
-          <button class="btn btn-fill" onclick="startSession('learn')" style="width:260px;justify-content:center;padding:12px 24px;font-size:16px">
-            <span class="icon" style="font-family:'Material Symbols Outlined';font-size:20px">play_arrow</span> Start Learning
-          </button>
-          <button class="btn btn-outline" onclick="startSession('learn')" style="width:260px;justify-content:center">
-            <span class="icon" style="font-family:'Material Symbols Outlined';font-size:18px">school</span> Learn Mode
-          </button>
-          <button class="btn btn-outline" onclick="startSession('drill')" style="width:260px;justify-content:center">
-            <span class="icon" style="font-family:'Material Symbols Outlined';font-size:18px">bolt</span> Drill Mode
-          </button>
-          <button class="btn btn-outline" onclick="startSession('mock_exam')" style="width:260px;justify-content:center">
-            <span class="icon" style="font-family:'Material Symbols Outlined';font-size:18px">timer</span> Mock Exam
-          </button>
-          <button class="btn btn-text" onclick="showUploadForm()" style="width:260px;justify-content:center;margin-top:4px">
-            <span class="icon" style="font-family:'Material Symbols Outlined';font-size:18px">upload_file</span> Upload PDF
+          <p style="font:400 14px/20px var(--font);color:var(--on-surface-variant);max-width:360px;margin-bottom:8px;text-align:center">Pick a mode from the top bar to start learning, or import new content.</p>
+          <button class="btn btn-text" onclick="showUploadForm()" style="width:220px;justify-content:center">
+            <span class="mat-icon" style="font-family:'Material Symbols Outlined';font-size:18px">upload_file</span> Upload PDF / EPUB
           </button>
         </div>
       </div>
@@ -346,17 +348,16 @@ function clearResume() {
 }
 
 function renderLessonList() {
-  const list = document.getElementById('lessonList');
-  const mList = document.getElementById('mLessonList');
+  const list = document.getElementById('lessonTree');
+  const mList = document.getElementById('lessonTree');
   var completed = window.completedLessons || [];
   const html = lessons.map((l, i) => {
     var done = completed.indexOf(l.id) >= 0;
-    return '<div class="lesson' + (currentStep && currentStep.lesson_id === l.id ? ' active' : '') + '" data-id="' + l.id + '" onclick="closeDrawer();selectLesson(' + l.id + ')">' +
+    return '<div class="lesson' + (currentStep && currentStep.lesson_id === l.id ? ' active' : '') + '" data-id="' + l.id + '" onclick="closePanel();selectLesson(' + l.id + ')">' +
       '<span class="num" style="' + (done ? 'background:var(--success);color:#fff' : '') + '">' + (done ? '\u2713' : (i + 1)) + '</span>' +
       '<span class="t">' + esc(l.title) + '</span></div>';
   }).join('');
-  list.innerHTML = html || '<div style="padding:12px;font:400 13px/18px var(--font);color:var(--on-surface-variant)">No lessons loaded.</div>';
-  mList.innerHTML = list.innerHTML;
+  // removed '<div style="padding:12px;font:400 13px/18px var(--font);color:var(--on-surface-variant)">No lessons loaded.</div>';
 }
 
 /* ════════════════════════════════════════════════
@@ -577,8 +578,8 @@ function updateStats() {
 /* ════════════════════════════════════════════════
    NAVIGATION
    ════════════════════════════════════════════════ */
-function toggleMobileDrawer() {
-  document.getElementById('mobileDrawer').classList.toggle('show');
+function togglePanel() {
+  document.getElementById('lessonPanel').classList.toggle('show');
 }
 
 function selectLesson(id) {
@@ -618,8 +619,8 @@ function selectLesson(id) {
     '</div>';
 }
 
-function closeDrawer() {
-  document.getElementById('mobileDrawer').classList.remove('show');
+function closePanel() {
+  document.getElementById('lessonPanel').classList.remove('show');
 }
 
 function closeMobileDrawer(e) {
@@ -789,6 +790,33 @@ function showError(msg) {
    START
    ════════════════════════════════════════════════ */
 init();
+function switchMode(mode) {
+  document.querySelectorAll('.mode-tab').forEach(t => t.classList.remove('active'));
+  var tab = document.querySelector('.mode-tab[data-mode="' + mode + '"]');
+  if (tab) tab.classList.add('active');
+  if (mode === 'progress') { showDashboard(); }
+  else { startSession(mode); }
+}
+
+function filterLessons(q) {
+  q = q.toLowerCase();
+  document.querySelectorAll('.lesson-item').forEach(function(item) {
+    var t = item.textContent.toLowerCase();
+    item.style.display = t.includes(q) ? '' : 'none';
+  });
+  document.querySelectorAll('.domain-group').forEach(function(g) {
+    var items = g.querySelectorAll('.lesson-item');
+    var visible = Array.from(items).some(function(it) { return it.style.display !== 'none'; });
+    g.style.display = visible ? '' : 'none';
+  });
+}
+
+function toggleGroup(header) {
+  var arrow = header.querySelector('.arrow');
+  var lessons = header.nextElementSibling;
+  if (arrow) arrow.classList.toggle('open');
+  if (lessons) lessons.classList.toggle('open');
+}
 </script>
 </body>
 </html>
